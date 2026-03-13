@@ -1,0 +1,162 @@
+.plant-detail-page {
+  padding-bottom: 40px;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #0ea5e9;
+  font-weight: 500;
+  margin-bottom: 20px;
+  padding: 6px 0;
+  transition: color 0.2s;
+}
+
+.back-link:hover {
+  color: #0284c7;
+}
+
+.plant-detail-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+/* Header */
+.detail-header {
+  display: flex;
+  gap: 24px;
+  padding: 24px;
+  border-bottom: 1px solid #f1f5f9;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+}
+
+.detail-image {
+  width: 200px;
+  height: 200px;
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.detail-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 4rem;
+  color: #86efac;
+  background: #f0fdf4;
+}
+
+.detail-title {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.detail-title h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+
+.scientific-name {
+  font-size: 1.15rem;
+  font-style: italic;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.family-name {
+  font-size: 0.95rem;
+  color: #475569;
+  margin-bottom: 4px;
+}
+
+.other-names {
+  font-size: 0.9rem;
+  color: #94a3b8;
+}
+
+/* Sections */
+.detail-sections {
+  padding: 24px;
+}
+
+.detail-section {
+  margin-bottom: 24px;
+}
+
+.detail-section:last-child {
+  margin-bottom: 0;
+}
+
+.detail-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e0f2fe;
+}
+
+.section-icon {
+  color: #0ea5e9;
+}
+
+.detail-section p {
+  color: #475569;
+  line-height: 1.7;
+}
+
+.symptom-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.symptom-tag {
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.distribution-text {
+  margin-bottom: 12px;
+}
+
+@media (max-width: 600px) {
+  .detail-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .detail-image {
+    width: 160px;
+    height: 160px;
+  }
+
+  .detail-title h1 {
+    font-size: 1.5rem;
+  }
+}
