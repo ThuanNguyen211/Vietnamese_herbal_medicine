@@ -1,3 +1,7 @@
 /docker-compose.yml
 /Dữ liệu mẫu - Cây thuốc Nam.csv
 /mota.md
+
+# Python cache and package marker files
+**/__pycache__/
+**/__init__.py
