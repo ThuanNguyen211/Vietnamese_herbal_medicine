@@ -129,8 +129,15 @@ except Exception as e:
 
 
 def normalize_vietnamese(text: str) -> str:
-    """Chuẩn hóa text tiếng Việt để so sánh."""
+    """Chuẩn hóa text tiếng Việt để so sánh không dấu."""
+    if not text:
+        return ""
+
     text = text.lower().strip()
+    text = unicodedata.normalize("NFD", text)
+    text = "".join(ch for ch in text if unicodedata.category(ch) != "Mn")
+    text = text.replace("đ", "d")
+    text = re.sub(r"\s+", " ", text)
     return text
 
 
@@ -174,32 +181,81 @@ def classify_image(image_bytes: bytes, top_k: int = 2) -> List[Tuple[str, float]
 
 def match_symptoms_to_plants(symptoms_text: str, db: Session) -> List[Tuple[Plant, float]]:
     """
-    Placeholder: Tìm cây thuốc nam phù hợp với triệu chứng.
-    
-    Khi tích hợp model thật (NLP/embedding), thay thế hàm này.
-    Hiện tại dùng keyword matching đơn giản.
+    Tìm cây thuốc nam phù hợp với nội dung text người dùng nhập.
+
+    Hỗ trợ tìm theo nhiều trường:
+    - tên cây, tên khoa học, tên khác
+    - mô tả, công dụng, triệu chứng
+    - bộ phận dùng, cách dùng, vùng phân bố
+
+    Trả về top kết quả với confidence chuẩn hóa theo điểm cao nhất.
     """
-    keywords = [k.strip().lower() for k in symptoms_text.split(",")]
-    if len(keywords) == 1:
-        keywords = symptoms_text.lower().split()
+    normalized_query = normalize_vietnamese(symptoms_text)
+    if not normalized_query:
+        return []
+
+    keywords = re.findall(r"[a-z0-9]+", normalized_query)
+
+    searchable_fields = [
+        ("name", 6.0),
+        ("scientific_name", 5.0),
+        ("other_names", 5.0),
+        ("symptoms", 4.5),
+        ("usage", 4.0),
+        ("description", 3.5),
+        ("parts_used", 3.0),
+        ("family", 2.0),
+        ("preparation", 2.0),
+        ("distribution", 1.5),
+    ]
 
     plants = db.query(Plant).all()
-    results = []
+    scored_results: List[Tuple[Plant, float]] = []
 
     for plant in plants:
-        if not plant.symptoms:
-            continue
-        plant_symptoms = plant.symptoms.lower()
-        score = 0
-        for kw in keywords:
-            if kw in plant_symptoms:
-                score += 1
-        if score > 0:
-            confidence = min(score / max(len(keywords), 1), 1.0)
-            results.append((plant, confidence))
+        score = 0.0
 
-    results.sort(key=lambda x: x[1], reverse=True)
-    return results[:5]
+        for field_name, field_weight in searchable_fields:
+            raw_value = getattr(plant, field_name, None)
+            if not raw_value:
+                continue
+
+            field_text = normalize_vietnamese(str(raw_value))
+            if not field_text:
+                continue
+
+            # Tăng điểm mạnh khi cụm truy vấn xuất hiện nguyên cụm trong field.
+            if normalized_query in field_text:
+                score += field_weight * 2.5
+
+            keyword_hits = 0
+            for kw in keywords:
+                if kw in field_text:
+                    keyword_hits += 1
+
+            # Giới hạn số hit để tránh field dài lấn át hoàn toàn.
+            if keyword_hits:
+                score += field_weight * min(keyword_hits, 3)
+
+        # Bonus khi query trùng chính xác tên cây.
+        if normalized_query == normalize_vietnamese(plant.name or ""):
+            score += 20.0
+
+        if score > 0:
+            scored_results.append((plant, score))
+
+    if not scored_results:
+        return []
+
+    scored_results.sort(key=lambda x: x[1], reverse=True)
+    best_score = scored_results[0][1]
+
+    normalized_results: List[Tuple[Plant, float]] = []
+    for plant, raw_score in scored_results[:5]:
+        confidence = raw_score / best_score if best_score > 0 else 0.0
+        normalized_results.append((plant, round(confidence, 2)))
+
+    return normalized_results
 
 
 def process_chat(
@@ -236,11 +292,11 @@ def process_chat(
                 else:
                     reply_parts.append(f"- **{plant_name}** - Độ tin cậy: {conf:.0%} (chưa có trong CSDL)")
 
-    # 2. Xử lý text triệu chứng (nếu có)
+    # 2. Xử lý text từ người dùng (nếu có)
     if message and message.strip():
         matches = match_symptoms_to_plants(message, db)
         if matches:
-            reply_parts.append(f"\n🌿 **Cây thuốc nam phù hợp với triệu chứng \"{message}\":**")
+            reply_parts.append(f"\n🌿 **Cây thuốc nam phù hợp với nội dung \"{message}\":**")
             for plant, conf in matches:
                 # Tránh trùng lặp
                 if not any(r["id"] == plant.id for r in recommended):
@@ -255,10 +311,16 @@ def process_chat(
                     })
                 reply_parts.append(f"- **{plant.name}**: {plant.usage[:100] if plant.usage else 'N/A'}...")
         else:
-            reply_parts.append(f"Không tìm thấy cây thuốc nam phù hợp với triệu chứng \"{message}\". Vui lòng thử lại với mô tả khác.")
+            reply_parts.append(
+                f"Không tìm thấy cây thuốc nam phù hợp với nội dung \"{message}\". "
+                "Bạn có thể thử theo tên cây, mô tả, công dụng, bộ phận dùng hoặc triệu chứng."
+            )
 
     if not reply_parts:
-        reply_parts.append("Vui lòng nhập triệu chứng hoặc tải lên ảnh cây thuốc nam để tôi hỗ trợ bạn.")
+        reply_parts.append(
+            "Vui lòng nhập nội dung (tên cây/mô tả/công dụng/triệu chứng/...) "
+            "hoặc tải lên ảnh cây thuốc nam để tôi hỗ trợ bạn."
+        )
 
     return {
         "reply": "\n".join(reply_parts),

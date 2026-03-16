@@ -1,10 +1,13 @@
 .distribution-map-container {
-  margin-top: 8px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .distribution-map-container .leaflet-container {
   border: 2px solid #e2e8f0;
   border-radius: 12px;
+  flex: 1;
 }
 
 .map-legend {
@@ -36,13 +39,67 @@
 .no-map-data {
   text-align: center;
   color: #94a3b8;
-  padding: 20px;
+  padding: 10px 12px;
   background: #f8fafc;
-  border-radius: 12px;
+  border-radius: 10px;
+  font-size: 0.86rem;
+  margin-top: 8px;
 }
 
 /* Fix Leaflet z-index */
 .herb-marker {
   background: transparent !important;
   border: none !important;
+}
+
+.distribution-tooltip {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.distribution-tooltip .leaflet-tooltip-content {
+  margin: 0;
+}
+
+.distribution-tooltip-content {
+  min-width: 180px;
+  max-width: 230px;
+  background: #0f172a;
+  color: #f8fafc;
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.35);
+}
+
+.distribution-tooltip-title {
+  color: #4ade80;
+  font-size: 0.88rem;
+  display: block;
+}
+
+.distribution-tooltip-science {
+  color: #cbd5e1;
+  font-size: 0.76rem;
+  margin-top: 2px;
+  font-style: italic;
+}
+
+.distribution-tooltip-location {
+  margin-top: 6px;
+  font-size: 0.82rem;
+}
+
+.distribution-tooltip-confidence {
+  margin-top: 5px;
+  font-size: 0.77rem;
+  color: #86efac;
+  font-weight: 600;
+}
+
+.distribution-tooltip-usage {
+  margin-top: 6px;
+  font-size: 0.76rem;
+  color: #e2e8f0;
+  line-height: 1.45;
 }

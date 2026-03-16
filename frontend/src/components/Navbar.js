@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FaLeaf, FaRobot, FaHome } from 'react-icons/fa';
+import { FaMapMarkedAlt, FaHome } from 'react-icons/fa';
 import './Navbar.css';
 
 function Navbar() {
@@ -25,8 +25,8 @@ function Navbar() {
             to="/chatbot"
             className={`nav-link ${location.pathname === '/chatbot' ? 'active' : ''}`}
           >
-            <FaRobot />
-            <span>Chatbot AI</span>
+            <FaMapMarkedAlt />
+            <span>Bản đồ tìm kiếm</span>
           </Link>
         </div>
       </div>

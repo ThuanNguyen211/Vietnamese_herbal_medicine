@@ -19,6 +19,42 @@ def get_first_letter(name: str) -> str:
     return first_char
 
 
+SOUTHERN_LOCATIONS = [
+    {"lat": 10.8231, "lng": 106.6297, "location": "TP. Hồ Chí Minh"},
+    {"lat": 10.0452, "lng": 105.7469, "location": "Cần Thơ"},
+    {"lat": 10.2433, "lng": 106.3756, "location": "Bến Tre"},
+    {"lat": 10.4938, "lng": 105.6882, "location": "Đồng Tháp"},
+    {"lat": 10.0125, "lng": 105.0809, "location": "Rạch Giá, Kiên Giang"},
+    {"lat": 9.1769, "lng": 105.1524, "location": "Cà Mau"},
+    {"lat": 9.6037, "lng": 105.9739, "location": "Sóc Trăng"},
+    {"lat": 9.2941, "lng": 105.7278, "location": "Bạc Liêu"},
+    {"lat": 10.3600, "lng": 106.3590, "location": "Mỹ Tho, Tiền Giang"},
+    {"lat": 10.2534, "lng": 105.9722, "location": "Vĩnh Long"},
+    {"lat": 10.6956, "lng": 106.2431, "location": "Long An"},
+    {"lat": 11.3254, "lng": 106.4770, "location": "Bình Dương"},
+    {"lat": 10.9574, "lng": 106.8426, "location": "Đồng Nai"},
+    {"lat": 11.3351, "lng": 106.1099, "location": "Tây Ninh"},
+    {"lat": 10.4114, "lng": 107.1362, "location": "Bà Rịa - Vũng Tàu"},
+    {"lat": 10.2899, "lng": 103.9840, "location": "Phú Quốc"},
+]
+
+
+def build_southern_distribution_coords(plant_name: str, total_points: int = 3):
+    """Sinh tọa độ phân bố chỉ trong miền Nam Việt Nam cho từng cây."""
+    if not plant_name:
+        plant_name = "cay-thuoc"
+
+    start = sum(ord(ch) for ch in plant_name) % len(SOUTHERN_LOCATIONS)
+    step = 5  # Coprime với 16 để đảm bảo lấy điểm không trùng.
+    coords = []
+
+    for i in range(total_points):
+        idx = (start + i * step) % len(SOUTHERN_LOCATIONS)
+        coords.append(dict(SOUTHERN_LOCATIONS[idx]))
+
+    return coords
+
+
 SAMPLE_PLANTS = [
     # 1. Rau má
     {
@@ -983,24 +1019,39 @@ SAMPLE_PLANTS = [
 ]
 
 
+for plant_data in SAMPLE_PLANTS:
+    plant_data["distribution"] = "Phân bố tại các tỉnh miền Nam Việt Nam."
+    plant_data["distribution_coords"] = build_southern_distribution_coords(plant_data["name"])
+
+
 def seed_database():
-    """Tạo bảng và thêm dữ liệu mẫu."""
+    """Tạo bảng và đồng bộ dữ liệu mẫu (upsert)."""
     Base.metadata.create_all(bind=engine)
 
     db = SessionLocal()
     try:
-        count = db.query(Plant).count()
-        if count > 0:
-            print(f"Database đã có {count} cây thuốc nam. Bỏ qua seed.")
-            return
+        existing_by_name = {plant.name: plant for plant in db.query(Plant).all()}
+        created_count = 0
+        updated_count = 0
 
         for data in SAMPLE_PLANTS:
-            data["letter"] = get_first_letter(data["name"])
-            plant = Plant(**data)
-            db.add(plant)
+            payload = {**data, "letter": get_first_letter(data["name"])}
+            existing = existing_by_name.get(data["name"])
+
+            if existing:
+                for field, value in payload.items():
+                    setattr(existing, field, value)
+                updated_count += 1
+            else:
+                db.add(Plant(**payload))
+                created_count += 1
 
         db.commit()
-        print(f"Đã thêm {len(SAMPLE_PLANTS)} cây thuốc nam vào database!")
+        total_count = db.query(Plant).count()
+        print(
+            "Đồng bộ dữ liệu cây thuốc nam thành công! "
+            f"Tạo mới: {created_count}, Cập nhật: {updated_count}, Tổng: {total_count}."
+        )
     except Exception as e:
         db.rollback()
         print(f"Lỗi: {e}")

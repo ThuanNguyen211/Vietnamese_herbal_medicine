@@ -1,6 +1,56 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import L from 'leaflet';
 import './DistributionMap.css';
+
+const SOUTH_VIETNAM_BOUNDS = L.latLngBounds(
+  [7.0, 102.0],
+  [13.8, 110.5]
+);
+
+function clampBoundsToSouthVietnam(bounds) {
+  if (!bounds || !bounds.isValid()) {
+    return SOUTH_VIETNAM_BOUNDS;
+  }
+
+  if (!bounds.intersects(SOUTH_VIETNAM_BOUNDS)) {
+    return SOUTH_VIETNAM_BOUNDS;
+  }
+
+  const south = Math.max(bounds.getSouth(), SOUTH_VIETNAM_BOUNDS.getSouth());
+  const west = Math.max(bounds.getWest(), SOUTH_VIETNAM_BOUNDS.getWest());
+  const north = Math.min(bounds.getNorth(), SOUTH_VIETNAM_BOUNDS.getNorth());
+  const east = Math.min(bounds.getEast(), SOUTH_VIETNAM_BOUNDS.getEast());
+
+  return L.latLngBounds([south, west], [north, east]);
+}
+
+function escapeHtml(input) {
+  return String(input || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function buildTooltipContent(coord, fallbackPlantName) {
+  const title = escapeHtml(coord.plantName || fallbackPlantName || 'Cây thuốc nam');
+  const location = escapeHtml(coord.location || 'Vị trí không xác định');
+  const scientificName = escapeHtml(coord.scientificName || '');
+  const usage = escapeHtml(coord.usage || '');
+  const confidenceText =
+    typeof coord.confidence === 'number' ? `${Math.round(coord.confidence * 100)}%` : null;
+
+  return `
+    <div class="distribution-tooltip-content">
+      <strong class="distribution-tooltip-title">${title}</strong>
+      ${scientificName ? `<div class="distribution-tooltip-science">${scientificName}</div>` : ''}
+      <div class="distribution-tooltip-location">${location}</div>
+      ${confidenceText ? `<div class="distribution-tooltip-confidence">Độ tin cậy: ${confidenceText}</div>` : ''}
+      ${usage ? `<div class="distribution-tooltip-usage">${usage.slice(0, 110)}${usage.length > 110 ? '...' : ''}</div>` : ''}
+    </div>
+  `;
+}
 
 // Fix cho Leaflet marker icon
 delete L.Icon.Default.prototype._getIconUrl;
@@ -10,12 +60,24 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-function DistributionMap({ coords, plantName, height = '400px' }) {
+function DistributionMap({ coords, plantName, height = '400px', legendLabel = 'Vùng phân bố' }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
 
+  const safeCoords = useMemo(() => {
+    if (!Array.isArray(coords)) {
+      return [];
+    }
+
+    return coords.filter((coord) => Number.isFinite(Number(coord?.lat)) && Number.isFinite(Number(coord?.lng))).map((coord) => ({
+      ...coord,
+      lat: Number(coord.lat),
+      lng: Number(coord.lng),
+    }));
+  }, [coords]);
+
   useEffect(() => {
-    if (!coords || coords.length === 0 || !mapRef.current) return;
+    if (!mapRef.current) return;
 
     // Cleanup bản đồ cũ - dừng animation trước khi remove
     if (mapInstanceRef.current) {
@@ -47,13 +109,16 @@ function DistributionMap({ coords, plantName, height = '400px' }) {
       popupAnchor: [0, -28],
     });
 
-    // Tạo bản đồ với trung tâm Việt Nam
+    // Tạo bản đồ và giới hạn viewport vào miền Nam Việt Nam
     const map = L.map(mapRef.current, {
-      center: [16.0, 107.0],
-      zoom: 6,
+      center: [10.8, 106.7],
+      zoom: 7,
       scrollWheelZoom: true,
       zoomAnimation: false,
       fadeAnimation: false,
+      maxBounds: SOUTH_VIETNAM_BOUNDS,
+      maxBoundsViscosity: 1.0,
+      minZoom: 6,
     });
 
     // Thêm tile layer (OpenStreetMap)
@@ -63,25 +128,35 @@ function DistributionMap({ coords, plantName, height = '400px' }) {
     }).addTo(map);
 
     // Thêm markers
-    const markers = coords.map((coord) => {
+    const markers = safeCoords.map((coord) => {
       const marker = L.marker([coord.lat, coord.lng], { icon: herbIcon }).addTo(map);
-      marker.bindPopup(`
-        <div style="text-align:center; min-width:150px;">
-          <strong style="color:#16a34a; font-size:14px;">🌿 ${plantName}</strong>
-          <br/>
-          <span style="color:#475569; font-size:13px;">${coord.location}</span>
-          <br/>
-          <small style="color:#94a3b8;">Lat: ${coord.lat.toFixed(4)}, Lng: ${coord.lng.toFixed(4)}</small>
-        </div>
-      `);
+
+      marker.bindTooltip(buildTooltipContent(coord, plantName), {
+        direction: 'top',
+        offset: [0, -24],
+        opacity: 0.97,
+        sticky: true,
+        className: 'distribution-tooltip',
+      });
+
+      marker.on('mouseover', () => marker.openTooltip());
+      marker.on('mouseout', () => marker.closeTooltip());
+
       return marker;
     });
 
-    // Fit bounds để hiển thị tất cả markers
+    // Fit bounds nhưng luôn giữ trong khung miền Nam Việt Nam
     if (markers.length > 0) {
       const group = L.featureGroup(markers);
-      map.fitBounds(group.getBounds().pad(0.3));
+      const clampedBounds = clampBoundsToSouthVietnam(group.getBounds().pad(0.2));
+      map.fitBounds(clampedBounds);
+    } else {
+      map.fitBounds(SOUTH_VIETNAM_BOUNDS);
     }
+
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 40);
 
     mapInstanceRef.current = map;
 
@@ -93,20 +168,17 @@ function DistributionMap({ coords, plantName, height = '400px' }) {
         mapInstanceRef.current = null;
       }
     };
-  }, [coords, plantName]);
-
-  if (!coords || coords.length === 0) {
-    return <p className="no-map-data">Chưa có dữ liệu phân bố.</p>;
-  }
+  }, [safeCoords, plantName]);
 
   return (
     <div className="distribution-map-container">
       <div ref={mapRef} style={{ height, width: '100%', borderRadius: '12px' }} />
       <div className="map-legend">
         <span className="legend-marker">🌿</span>
-        <span>Vùng phân bố {plantName}</span>
-        <span className="legend-count">{coords.length} địa điểm</span>
+        <span>{legendLabel} {plantName}</span>
+        <span className="legend-count">{safeCoords.length} địa điểm</span>
       </div>
+      {safeCoords.length === 0 && <p className="no-map-data">Chưa có tọa độ, bản đồ đang focus Miền Nam Việt Nam.</p>}
     </div>
   );
 }
