@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { FaArrowLeft, FaLeaf, FaMapMarkerAlt, FaSeedling, FaMortarPestle, FaStethoscope, FaInfoCircle, FaCut } from 'react-icons/fa';
-import { getPlantDetail } from '../services/api';
+import { API_BASE_URL, getPlantDetail } from '../services/api';
 import DistributionMap from '../components/DistributionMap';
 import './PlantDetailPage.css';
 
@@ -57,7 +57,7 @@ function PlantDetailPage() {
         <div className="detail-header">
           <div className="detail-image">
             {plant.image_url ? (
-              <img src={`http://localhost:8000${plant.image_url}`} alt={plant.name} />
+              <img src={`${API_BASE_URL}${plant.image_url}`} alt={plant.name} />
             ) : (
               <div className="image-placeholder">
                 <FaLeaf />

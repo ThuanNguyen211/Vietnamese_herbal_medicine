@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from app.database import engine, Base
-from app.routers import plants, chatbot
+from app.routers import plants, map as map_router
 from app.seed_data import seed_database
 
 # Tạo bảng và seed dữ liệu
@@ -20,7 +20,7 @@ app = FastAPI(
 # CORS - cho phép frontend truy cập
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -33,7 +33,8 @@ app.mount("/images", StaticFiles(directory=images_dir), name="images")
 
 # Routers
 app.include_router(plants.router)
-app.include_router(chatbot.router)
+app.include_router(map_router.router)
+app.include_router(map_router.legacy_router)
 
 
 @app.get("/")
@@ -45,6 +46,7 @@ def root():
             "catalog": "/api/plants/catalog",
             "search": "/api/plants/search?q=...",
             "detail": "/api/plants/{id}",
-            "chatbot": "/api/chatbot/chat",
+            "map": "/api/map/chat",
+            "chatbot_legacy": "/api/chatbot/chat",
         }
     }

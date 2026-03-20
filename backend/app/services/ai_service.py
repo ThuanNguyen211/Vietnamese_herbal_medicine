@@ -258,13 +258,13 @@ def match_symptoms_to_plants(symptoms_text: str, db: Session) -> List[Tuple[Plan
     return normalized_results
 
 
-def process_chat(
+def process_map(
     message: Optional[str],
     image_bytes: Optional[bytes],
     db: Session
 ) -> dict:
     """
-    Xử lý yêu cầu chatbot: text + ảnh.
+    Xử lý yêu cầu map: text + ảnh.
     Trả về dict với reply, recommended_plants, session_id.
     """
     session_id = str(uuid.uuid4())[:8]

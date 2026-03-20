@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 const api = axios.create({
-  baseURL: API_BASE,
+  baseURL: API_BASE_URL,
 });
 
 // ============ Plants API ============
@@ -23,18 +23,29 @@ export const getPlantDetail = async (plantId) => {
   return response.data;
 };
 
-// ============ Chatbot API ============
+// ============ Map API ============
 
-export const sendChatMessage = async ({ message, image, sessionId }) => {
+export const sendMapMessage = async ({ message, image, sessionId }) => {
   const formData = new FormData();
   if (message) formData.append('message', message);
   if (image) formData.append('image', image);
   if (sessionId) formData.append('session_id', sessionId);
 
-  const response = await api.post('/api/chatbot/chat', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
-  return response.data;
+  try {
+    const response = await api.post('/api/map/chat', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  } catch (error) {
+    // Backward-compatible fallback for old backend deployments.
+    if (error?.response?.status === 404) {
+      const fallbackResponse = await api.post('/api/chatbot/chat', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return fallbackResponse.data;
+    }
+    throw error;
+  }
 };
 
 export default api;

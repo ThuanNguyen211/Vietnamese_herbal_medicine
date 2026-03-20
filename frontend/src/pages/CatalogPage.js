@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FaChevronDown, FaChevronUp, FaSearch, FaLeaf } from 'react-icons/fa';
-import { getCatalog, searchPlants } from '../services/api';
+import { API_BASE_URL, getCatalog, searchPlants } from '../services/api';
 import './CatalogPage.css';
 
 function CatalogPage() {
@@ -105,7 +105,7 @@ function CatalogPage() {
                 <Link key={plant.id} to={`/plant/${plant.id}`} className="plant-item">
                   <div className="plant-thumb">
                     {plant.image_url ? (
-                      <img src={`http://localhost:8000${plant.image_url}`} alt={plant.name} />
+                      <img src={`${API_BASE_URL}${plant.image_url}`} alt={plant.name} />
                     ) : (
                       <FaLeaf className="plant-placeholder-icon" />
                     )}
@@ -146,7 +146,7 @@ function CatalogPage() {
                     <Link key={plant.id} to={`/plant/${plant.id}`} className="plant-item">
                       <div className="plant-thumb">
                         {plant.image_url ? (
-                          <img src={`http://localhost:8000${plant.image_url}`} alt={plant.name} />
+                          <img src={`${API_BASE_URL}${plant.image_url}`} alt={plant.name} />
                         ) : (
                           <FaLeaf className="plant-placeholder-icon" />
                         )}

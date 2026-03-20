@@ -3,7 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import CatalogPage from './pages/CatalogPage';
 import PlantDetailPage from './pages/PlantDetailPage';
-import ChatbotPage from './pages/ChatbotPage';
+import MapPage from './pages/MapPage';
 
 function App() {
   return (
@@ -13,7 +13,7 @@ function App() {
         <Routes>
           <Route path="/" element={<CatalogPage />} />
           <Route path="/plant/:id" element={<PlantDetailPage />} />
-          <Route path="/chatbot" element={<ChatbotPage />} />
+          <Route path="/map" element={<MapPage />} />
         </Routes>
       </main>
     </div>

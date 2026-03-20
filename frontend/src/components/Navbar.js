@@ -22,8 +22,8 @@ function Navbar() {
             <span>Danh mục</span>
           </Link>
           <Link
-            to="/chatbot"
-            className={`nav-link ${location.pathname === '/chatbot' ? 'active' : ''}`}
+            to="/map"
+            className={`nav-link ${location.pathname === '/map' ? 'active' : ''}`}
           >
             <FaMapMarkedAlt />
             <span>Bản đồ tìm kiếm</span>

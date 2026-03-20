@@ -48,8 +48,8 @@ class CatalogGroup(BaseModel):
     plants: List[PlantSummary]
 
 
-# ============ Chatbot Schemas ============
-class ChatRequest(BaseModel):
+# ============ Map Schemas ============
+class MapRequest(BaseModel):
     message: Optional[str] = None
     session_id: Optional[str] = None
 
@@ -64,7 +64,7 @@ class RecommendedPlant(BaseModel):
     confidence: Optional[float] = None
 
 
-class ChatResponse(BaseModel):
+class MapResponse(BaseModel):
     reply: str
     recommended_plants: List[RecommendedPlant] = []
     session_id: str

@@ -1,6 +1,6 @@
 # 🌿 Cây Thuốc Nam Việt Nam
 
-Ứng dụng web tra cứu và nhận diện cây thuốc nam Việt Nam, tích hợp AI chatbot và mô hình học sâu **DenseNet201** để phân loại ảnh 50 loài cây thuốc.
+Ứng dụng web tra cứu và nhận diện cây thuốc nam Việt Nam, tích hợp AI map và mô hình học sâu **DenseNet201** để phân loại ảnh 50 loài cây thuốc.
 
 ---
 
@@ -8,7 +8,7 @@
 
 - **Danh mục A-Z** — Tra cứu toàn bộ 50 cây thuốc nam theo bảng chữ cái với giao diện accordion
 - **Trang chi tiết cây thuốc** — Thông tin đầy đủ: tên khoa học, công dụng, bộ phận dùng, cách chế biến, kèm ảnh và bản đồ phân bố
-- **Chatbot AI** — Nhập mô tả triệu chứng hoặc tải ảnh lên để được gợi ý cây thuốc phù hợp
+- **Map AI** — Nhập mô tả triệu chứng hoặc tải ảnh lên để được gợi ý cây thuốc phù hợp
 - **Nhận diện ảnh** — Mô hình DenseNet201 phân loại 50 loài cây thuốc từ ảnh chụp
 - **Bản đồ phân bố** — Hiển thị vùng phân bố từng cây trên bản đồ Việt Nam (Leaflet + OpenStreetMap)
 
@@ -42,7 +42,7 @@ Vietnamese_herbal_medicine/
 │       ├── seed_data.py            # Dữ liệu 50 cây thuốc nam
 │       ├── routers/
 │       │   ├── plants.py           # API danh mục, tìm kiếm, chi tiết cây
-│       │   └── chatbot.py          # API chatbot (text + ảnh)
+│       │   └── map.py              # API map (text + ảnh)
 │       └── services/
 │           └── ai_service.py       # DenseNet201 inference + khớp triệu chứng
 ├── frontend/
@@ -55,7 +55,7 @@ Vietnamese_herbal_medicine/
 │       ├── pages/
 │       │   ├── CatalogPage.js      # Danh mục A-Z
 │       │   ├── PlantDetailPage.js  # Chi tiết cây thuốc
-│       │   └── ChatbotPage.js      # Chatbot + bản đồ gợi ý
+│       │   └── MapPage.js          # Map + bản đồ gợi ý
 │       └── services/
 │           └── api.js              # Axios API calls
 └── README.md
@@ -104,12 +104,12 @@ Sau khi khởi động:
 | GET | `/api/plants/catalog` | Danh mục cây thuốc theo bảng chữ cái A-Z |
 | GET | `/api/plants/search?q=...` | Tìm kiếm theo tên hoặc triệu chứng |
 | GET | `/api/plants/{id}` | Thông tin chi tiết một cây thuốc |
-| POST | `/api/chatbot/chat` | Chat với AI (hỗ trợ text và file ảnh) |
+| POST | `/api/map/chat` | Chat với AI (hỗ trợ text và file ảnh) |
 
-### Ví dụ — Gửi ảnh đến chatbot
+### Ví dụ — Gửi ảnh đến map
 
 ```bash
-curl -X POST http://localhost:8000/api/chatbot/chat \
+curl -X POST http://localhost:8000/api/map/chat \
   -F "message=Cây này chữa bệnh gì?" \
   -F "image=@anh_cay_thuoc.jpg"
 ```

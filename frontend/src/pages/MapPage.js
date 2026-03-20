@@ -1,11 +1,11 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaImage, FaMapMarkedAlt, FaSearch, FaTimes, FaLeaf } from 'react-icons/fa';
-import { sendChatMessage } from '../services/api';
+import { sendMapMessage } from '../services/api';
 import DistributionMap from '../components/DistributionMap';
-import './ChatbotPage.css';
+import './MapPage.css';
 
-function ChatbotPage() {
+function MapPage() {
   const [inputText, setInputText] = useState('');
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -72,7 +72,7 @@ function ChatbotPage() {
     setError('');
 
     try {
-      const response = await sendChatMessage({
+      const response = await sendMapMessage({
         message: msgText || null,
         image: msgImage,
         sessionId,
@@ -101,16 +101,6 @@ function ChatbotPage() {
 
   return (
     <div className="map-search-page">
-      <div className="map-search-header">
-        <h1>
-          <FaMapMarkedAlt />
-          Bản đồ tìm kiếm
-        </h1>
-        <p>
-          Tìm cây thuốc nam bằng mô tả hoặc hình ảnh, kết quả sẽ được hiển thị trực tiếp trên bản đồ Miền Nam Việt Nam.
-        </p>
-      </div>
-
       <form className="map-search-form" onSubmit={handleSearch}>
         <div className="search-input-wrapper">
           <FaSearch className="search-icon" />
@@ -208,4 +198,4 @@ function ChatbotPage() {
   );
 }
 
-export default ChatbotPage;
+export default MapPage;
