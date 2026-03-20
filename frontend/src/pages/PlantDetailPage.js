@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { FaArrowLeft, FaLeaf, FaMapMarkerAlt, FaSeedling, FaMortarPestle, FaStethoscope, FaInfoCircle, FaCut } from 'react-icons/fa';
 import { API_BASE_URL, getPlantDetail } from '../services/api';
 import DistributionMap from '../components/DistributionMap';
@@ -7,6 +7,7 @@ import './PlantDetailPage.css';
 
 function PlantDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [plant, setPlant] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -28,6 +29,15 @@ function PlantDetailPage() {
     }
   };
 
+  const handleBack = () => {
+    const hasSearchResults = sessionStorage.getItem('mapSearchState');
+    if (hasSearchResults) {
+      navigate('/map');
+    } else {
+      navigate(-1);
+    }
+  };
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -41,7 +51,7 @@ function PlantDetailPage() {
     return (
       <div className="error-container">
         <p>{error || 'Không tìm thấy'}</p>
-        <Link to="/" className="back-btn"><FaArrowLeft /> Quay lại danh mục</Link>
+        <button className="back-link" onClick={handleBack}><FaArrowLeft /> Quay lại</button>
       </div>
     );
   }
@@ -50,9 +60,9 @@ function PlantDetailPage() {
 
   return (
     <div className="plant-detail-page">
-      <Link to="/" className="back-link">
-        <FaArrowLeft /> Quay lại danh mục
-      </Link>
+      <button className="back-link" onClick={handleBack}>
+        <FaArrowLeft /> Quay lại
+      </button>
 
       <div className="plant-detail-card">
         {/* Header */}

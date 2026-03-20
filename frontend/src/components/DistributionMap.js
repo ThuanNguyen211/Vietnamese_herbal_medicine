@@ -269,13 +269,16 @@ function DistributionMap({
       map.setView(resolvedCenter, resolvedZoom);
     }
 
-    setTimeout(() => {
-      map.invalidateSize();
+    const timeoutId = setTimeout(() => {
+      if (mapInstanceRef.current && mapRef.current) {
+        mapInstanceRef.current.invalidateSize();
+      }
     }, 40);
 
     mapInstanceRef.current = map;
 
     return () => {
+      clearTimeout(timeoutId);
       if (mapInstanceRef.current) {
         mapInstanceRef.current.off();
         mapInstanceRef.current.stop();

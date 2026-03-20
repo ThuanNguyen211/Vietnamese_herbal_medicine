@@ -224,7 +224,7 @@ function CatalogPage() {
       <div className="catalog-header">
         <h1>
           <FaLeaf className="header-icon" />
-          Vietnamese herbal medicine
+          Vietnamese Herbal Atlas
         </h1>
         <p className="subtitle">Hệ thống truy vấn thông tin cây thuốc nam tại Việt Nam</p>
       </div>
@@ -327,7 +327,7 @@ function CatalogPage() {
             )}
           </section>
 
-          <section className="grouped-usage-tail">
+          {/* <section className="grouped-usage-tail">
             <div className="section-heading">
               <h2>Nhóm theo danh mục công dụng</h2>
             </div>
@@ -346,7 +346,7 @@ function CatalogPage() {
                 </section>
               ))}
             </div>
-          </section>
+          </section> */}
         </div>
       )}
     </div>

@@ -1,11 +1,12 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FaImage, FaMapMarkedAlt, FaSearch, FaTimes, FaLeaf } from 'react-icons/fa';
 import { sendMapMessage } from '../services/api';
 import DistributionMap from '../components/DistributionMap';
 import './MapPage.css';
 
 function MapPage() {
+  const navigate = useNavigate();
   const [inputText, setInputText] = useState('');
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -15,6 +16,35 @@ function MapPage() {
   const [searchSummary, setSearchSummary] = useState('');
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
+
+  // Load previous search results from sessionStorage on mount
+  useEffect(() => {
+    const savedState = sessionStorage.getItem('mapSearchState');
+    if (savedState) {
+      try {
+        const { recommendedPlants: saved, searchSummary: savedSummary, sessionId: savedSessionId } = JSON.parse(savedState);
+        setRecommendedPlants(saved || []);
+        setSearchSummary(savedSummary || '');
+        setSessionId(savedSessionId || null);
+      } catch (e) {
+        console.error('Failed to restore search state:', e);
+      }
+    }
+  }, []);
+
+  // Save search results to sessionStorage whenever they change
+  useEffect(() => {
+    if (recommendedPlants.length > 0 || searchSummary) {
+      sessionStorage.setItem(
+        'mapSearchState',
+        JSON.stringify({
+          recommendedPlants,
+          searchSummary,
+          sessionId,
+        })
+      );
+    }
+  }, [recommendedPlants, searchSummary, sessionId]);
 
   const mapCoords = useMemo(() => {
     const points = [];
@@ -175,12 +205,17 @@ function MapPage() {
           const pointCount = Array.isArray(plant.distribution_coords) ? plant.distribution_coords.length : 0;
 
           return (
-            <article className="result-card" key={plant.id || plant.name}>
+            <article
+              className="result-card"
+              key={plant.id || plant.name}
+              onClick={() => navigate(`/plant/${plant.id}`)}
+              style={{ cursor: 'pointer' }}
+            >
               <div className="result-card-top">
-                <Link to={`/plant/${plant.id}`} className="result-plant-name">
+                <div className="result-plant-name">
                   <FaLeaf />
                   <span>{plant.name}</span>
-                </Link>
+                </div>
                 {typeof plant.confidence === 'number' && (
                   <span className="confidence-badge">{(plant.confidence * 100).toFixed(0)}%</span>
                 )}
