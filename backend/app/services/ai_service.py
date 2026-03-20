@@ -146,7 +146,10 @@ def classify_image(image_bytes: bytes, top_k: int = 2) -> List[Tuple[str, float]
     Nhận diện cây thuốc nam từ ảnh bằng DenseNet201.
     
     Input: image bytes
-    Output: List of (plant_name, confidence_score) — top-k kết quả (mặc định 2)
+    Output: List of (plant_name, confidence_score).
+    Mặc định trả về tối đa 2 cây, nhưng sẽ chỉ trả về top-1 nếu:
+    - top-1 >= 75%, hoặc
+    - top-2 <= 25%
     """
     model = _load_model()
     if model is None:
@@ -172,6 +175,12 @@ def classify_image(image_bytes: bytes, top_k: int = 2) -> List[Tuple[str, float]
             confidence = prob.item()
             results.append((class_name, confidence))
 
+        if len(results) >= 2:
+            top_1_conf = results[0][1]
+            top_2_conf = results[1][1]
+            if top_1_conf >= 0.75 or top_2_conf <= 0.25:
+                return results[:1]
+
         return results
 
     except Exception as e:
@@ -188,7 +197,9 @@ def match_symptoms_to_plants(symptoms_text: str, db: Session) -> List[Tuple[Plan
     - mô tả, công dụng, triệu chứng
     - bộ phận dùng, cách dùng, vùng phân bố
 
-    Trả về top kết quả với confidence chuẩn hóa theo điểm cao nhất.
+    Trả về kết quả theo logic giống ảnh:
+    - Mặc định tối đa 2 cây
+    - Nếu top-1 >= 75% hoặc top-2 <= 25% thì chỉ trả top-1
     """
     normalized_query = normalize_vietnamese(symptoms_text)
     if not normalized_query:
@@ -248,14 +259,22 @@ def match_symptoms_to_plants(symptoms_text: str, db: Session) -> List[Tuple[Plan
         return []
 
     scored_results.sort(key=lambda x: x[1], reverse=True)
-    best_score = scored_results[0][1]
 
-    normalized_results: List[Tuple[Plant, float]] = []
-    for plant, raw_score in scored_results[:5]:
-        confidence = raw_score / best_score if best_score > 0 else 0.0
-        normalized_results.append((plant, round(confidence, 2)))
+    score_tensor = torch.tensor([score for _, score in scored_results], dtype=torch.float32)
+    confidence_tensor = F.softmax(score_tensor, dim=0)
+    ranked_results: List[Tuple[Plant, float]] = []
 
-    return normalized_results
+    for (plant, _), confidence in zip(scored_results, confidence_tensor):
+        ranked_results.append((plant, round(float(confidence.item()), 2)))
+
+    top_results = ranked_results[:2]
+    if len(top_results) >= 2:
+        top_1_conf = top_results[0][1]
+        top_2_conf = top_results[1][1]
+        if top_1_conf >= 0.75 or top_2_conf <= 0.25:
+            return top_results[:1]
+
+    return top_results
 
 
 def process_map(
@@ -270,11 +289,14 @@ def process_map(
     session_id = str(uuid.uuid4())[:8]
     recommended = []
     reply_parts = []
+    lock_to_image_top1 = False
 
     # 1. Xử lý ảnh (nếu có)
     if image_bytes:
         predictions = classify_image(image_bytes)
         if predictions:
+            # Nếu classify_image chỉ trả về 1 kết quả khi top_k=2, coi như ảnh đã đủ chắc chắn.
+            lock_to_image_top1 = len(predictions) == 1
             reply_parts.append("📷 **Kết quả nhận diện từ ảnh:**")
             for plant_name, conf in predictions:
                 plant = db.query(Plant).filter(Plant.name == plant_name).first()
@@ -293,7 +315,7 @@ def process_map(
                     reply_parts.append(f"- **{plant_name}** - Độ tin cậy: {conf:.0%} (chưa có trong CSDL)")
 
     # 2. Xử lý text từ người dùng (nếu có)
-    if message and message.strip():
+    if message and message.strip() and not lock_to_image_top1:
         matches = match_symptoms_to_plants(message, db)
         if matches:
             reply_parts.append(f"\n🌿 **Cây thuốc nam phù hợp với nội dung \"{message}\":**")

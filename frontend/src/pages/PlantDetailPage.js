@@ -46,6 +46,8 @@ function PlantDetailPage() {
     );
   }
 
+  const distributionCoords = Array.isArray(plant.distribution_coords) ? plant.distribution_coords : [];
+
   return (
     <div className="plant-detail-page">
       <Link to="/" className="back-link">
@@ -120,16 +122,15 @@ function PlantDetailPage() {
           )}
 
           {/* Distribution Map */}
-          {plant.distribution_coords && plant.distribution_coords.length > 0 && (
-            <div className="detail-section">
-              <h3><FaMapMarkerAlt className="section-icon" /> Bản đồ phân bố</h3>
-              {plant.distribution && <p className="distribution-text">{plant.distribution}</p>}
-              <DistributionMap
-                coords={plant.distribution_coords}
-                plantName={plant.name}
-              />
-            </div>
-          )}
+          <div className="detail-section">
+            <h3><FaMapMarkerAlt className="section-icon" /> Bản đồ phân bố</h3>
+            {plant.distribution && <p className="distribution-text">{plant.distribution}</p>}
+            <DistributionMap
+              coords={distributionCoords}
+              plantName={plant.name}
+              legendLabel="Vị trí của cây"
+            />
+          </div>
         </div>
       </div>
     </div>

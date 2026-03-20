@@ -103,7 +103,7 @@ function MapPage() {
     <div className="map-search-page">
       <form className="map-search-form" onSubmit={handleSearch}>
         <div className="search-input-wrapper">
-          <FaSearch className="search-icon" />
+          {/* <FaSearch className="search-icon" /> */}
           <input
             type="text"
             value={inputText}
@@ -157,7 +157,7 @@ function MapPage() {
       <div className="search-map-wrap">
         <DistributionMap
           coords={mapCoords}
-          plantName={recommendedPlants.length > 0 ? 'kết quả tìm kiếm' : 'Miền Nam Việt Nam'}
+          plantName={recommendedPlants.length > 0 ? 'kết quả tìm kiếm' : 'khu vực mặc định'}
           height="100%"
           legendLabel="Vị trí tìm thấy"
         />

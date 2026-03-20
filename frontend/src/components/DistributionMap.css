@@ -8,6 +8,7 @@
   border: 2px solid #e2e8f0;
   border-radius: 12px;
   flex: 1;
+  min-height: 320px;
 }
 
 .map-legend {
@@ -88,6 +89,13 @@
 .distribution-tooltip-location {
   margin-top: 6px;
   font-size: 0.82rem;
+}
+
+.distribution-tooltip-overlap {
+  margin-top: 5px;
+  font-size: 0.75rem;
+  color: #bef264;
+  font-weight: 600;
 }
 
 .distribution-tooltip-confidence {

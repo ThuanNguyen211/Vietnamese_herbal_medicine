@@ -2,26 +2,74 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import L from 'leaflet';
 import './DistributionMap.css';
 
-const SOUTH_VIETNAM_BOUNDS = L.latLngBounds(
-  [7.0, 102.0],
-  [13.8, 110.5]
-);
+const DEFAULT_CENTER = [10.8, 106.7];
+const DEFAULT_ZOOM = 7;
+const OVERLAP_MARKER_RADIUS_METERS = 5000;
+const EARTH_METERS_PER_DEGREE = 111320;
 
-function clampBoundsToSouthVietnam(bounds) {
+function normalizeBounds(boundsInput) {
+  if (!boundsInput) {
+    return null;
+  }
+
+  try {
+    const normalized = L.latLngBounds(boundsInput);
+    return normalized.isValid() ? normalized : null;
+  } catch {
+    return null;
+  }
+}
+
+function clampBounds(bounds, limitBounds) {
+  if (!limitBounds) {
+    return bounds;
+  }
+
   if (!bounds || !bounds.isValid()) {
-    return SOUTH_VIETNAM_BOUNDS;
+    return limitBounds;
   }
 
-  if (!bounds.intersects(SOUTH_VIETNAM_BOUNDS)) {
-    return SOUTH_VIETNAM_BOUNDS;
+  if (!bounds.intersects(limitBounds)) {
+    return limitBounds;
   }
 
-  const south = Math.max(bounds.getSouth(), SOUTH_VIETNAM_BOUNDS.getSouth());
-  const west = Math.max(bounds.getWest(), SOUTH_VIETNAM_BOUNDS.getWest());
-  const north = Math.min(bounds.getNorth(), SOUTH_VIETNAM_BOUNDS.getNorth());
-  const east = Math.min(bounds.getEast(), SOUTH_VIETNAM_BOUNDS.getEast());
+  const south = Math.max(bounds.getSouth(), limitBounds.getSouth());
+  const west = Math.max(bounds.getWest(), limitBounds.getWest());
+  const north = Math.min(bounds.getNorth(), limitBounds.getNorth());
+  const east = Math.min(bounds.getEast(), limitBounds.getEast());
 
   return L.latLngBounds([south, west], [north, east]);
+}
+
+function buildCoordKey(lat, lng) {
+  return `${lat.toFixed(6)}|${lng.toFixed(6)}`;
+}
+
+function spreadOverlapCoordinate(lat, lng, overlapIndex, overlapCount) {
+  if (overlapCount <= 1) {
+    return { lat, lng };
+  }
+
+  const slotCount = Math.min(Math.max(overlapCount, 2), 8);
+  const ring = Math.floor(overlapIndex / slotCount) + 1;
+
+  let angle;
+  if (slotCount === 2) {
+    const twoPointAngles = [Math.PI / 2, (3 * Math.PI) / 2];
+    angle = twoPointAngles[overlapIndex % 2];
+  } else {
+    angle = (2 * Math.PI * (overlapIndex % slotCount)) / slotCount;
+  }
+
+  const radiusMeters = OVERLAP_MARKER_RADIUS_METERS * ring;
+  const latOffset = (radiusMeters * Math.cos(angle)) / EARTH_METERS_PER_DEGREE;
+  const lngDivisor = EARTH_METERS_PER_DEGREE * Math.max(Math.cos((lat * Math.PI) / 180), 0.0001);
+  const lngOffset = (radiusMeters * Math.sin(angle)) / lngDivisor;
+
+  return {
+    lat: lat + latOffset,
+    lng: lng + lngOffset,
+  };
 }
 
 function escapeHtml(input) {
@@ -40,12 +88,14 @@ function buildTooltipContent(coord, fallbackPlantName) {
   const usage = escapeHtml(coord.usage || '');
   const confidenceText =
     typeof coord.confidence === 'number' ? `${Math.round(coord.confidence * 100)}%` : null;
+  const overlapText = coord.overlapCount > 1 ? `${coord.overlapCount} cây cùng vị trí` : null;
 
   return `
     <div class="distribution-tooltip-content">
       <strong class="distribution-tooltip-title">${title}</strong>
       ${scientificName ? `<div class="distribution-tooltip-science">${scientificName}</div>` : ''}
       <div class="distribution-tooltip-location">${location}</div>
+      ${overlapText ? `<div class="distribution-tooltip-overlap">${overlapText}</div>` : ''}
       ${confidenceText ? `<div class="distribution-tooltip-confidence">Độ tin cậy: ${confidenceText}</div>` : ''}
       ${usage ? `<div class="distribution-tooltip-usage">${usage.slice(0, 110)}${usage.length > 110 ? '...' : ''}</div>` : ''}
     </div>
@@ -60,9 +110,40 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-function DistributionMap({ coords, plantName, height = '400px', legendLabel = 'Vùng phân bố' }) {
+function DistributionMap({
+  coords,
+  plantName,
+  height = '400px',
+  legendLabel = 'Vùng phân bố',
+  initialCenter = DEFAULT_CENTER,
+  initialZoom = DEFAULT_ZOOM,
+  minZoom = 2,
+  fitPadding = 0.2,
+  maxBounds,
+  fallbackBounds,
+}) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
+
+  const resolvedMaxBounds = useMemo(() => normalizeBounds(maxBounds), [maxBounds]);
+  const resolvedFallbackBounds = useMemo(() => normalizeBounds(fallbackBounds), [fallbackBounds]);
+
+  const resolvedCenter = useMemo(() => {
+    if (Array.isArray(initialCenter) && initialCenter.length === 2) {
+      const lat = Number(initialCenter[0]);
+      const lng = Number(initialCenter[1]);
+
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        return [lat, lng];
+      }
+    }
+
+    return DEFAULT_CENTER;
+  }, [initialCenter?.[0], initialCenter?.[1]]);
+
+  const resolvedZoom = Number.isFinite(Number(initialZoom)) ? Number(initialZoom) : DEFAULT_ZOOM;
+  const resolvedMinZoom = Number.isFinite(Number(minZoom)) ? Number(minZoom) : 2;
+  const resolvedFitPadding = Number.isFinite(Number(fitPadding)) ? Number(fitPadding) : 0.2;
 
   const safeCoords = useMemo(() => {
     if (!Array.isArray(coords)) {
@@ -75,6 +156,33 @@ function DistributionMap({ coords, plantName, height = '400px', legendLabel = 'V
       lng: Number(coord.lng),
     }));
   }, [coords]);
+
+  const markerCoords = useMemo(() => {
+    const coordCountByKey = new Map();
+
+    safeCoords.forEach((coord) => {
+      const key = buildCoordKey(coord.lat, coord.lng);
+      coordCountByKey.set(key, (coordCountByKey.get(key) || 0) + 1);
+    });
+
+    const coordCursorByKey = new Map();
+
+    return safeCoords.map((coord) => {
+      const key = buildCoordKey(coord.lat, coord.lng);
+      const overlapCount = coordCountByKey.get(key) || 1;
+      const overlapIndex = coordCursorByKey.get(key) || 0;
+      coordCursorByKey.set(key, overlapIndex + 1);
+
+      const spread = spreadOverlapCoordinate(coord.lat, coord.lng, overlapIndex, overlapCount);
+
+      return {
+        ...coord,
+        markerLat: spread.lat,
+        markerLng: spread.lng,
+        overlapCount,
+      };
+    });
+  }, [safeCoords]);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -109,17 +217,21 @@ function DistributionMap({ coords, plantName, height = '400px', legendLabel = 'V
       popupAnchor: [0, -28],
     });
 
-    // Tạo bản đồ và giới hạn viewport vào miền Nam Việt Nam
-    const map = L.map(mapRef.current, {
-      center: [10.8, 106.7],
-      zoom: 7,
+    const mapOptions = {
+      center: resolvedCenter,
+      zoom: resolvedZoom,
       scrollWheelZoom: true,
       zoomAnimation: false,
       fadeAnimation: false,
-      maxBounds: SOUTH_VIETNAM_BOUNDS,
-      maxBoundsViscosity: 1.0,
-      minZoom: 6,
-    });
+      minZoom: resolvedMinZoom,
+    };
+
+    if (resolvedMaxBounds) {
+      mapOptions.maxBounds = resolvedMaxBounds;
+      mapOptions.maxBoundsViscosity = 1.0;
+    }
+
+    const map = L.map(mapRef.current, mapOptions);
 
     // Thêm tile layer (OpenStreetMap)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -128,8 +240,8 @@ function DistributionMap({ coords, plantName, height = '400px', legendLabel = 'V
     }).addTo(map);
 
     // Thêm markers
-    const markers = safeCoords.map((coord) => {
-      const marker = L.marker([coord.lat, coord.lng], { icon: herbIcon }).addTo(map);
+    const markers = markerCoords.map((coord) => {
+      const marker = L.marker([coord.markerLat, coord.markerLng], { icon: herbIcon }).addTo(map);
 
       marker.bindTooltip(buildTooltipContent(coord, plantName), {
         direction: 'top',
@@ -145,13 +257,16 @@ function DistributionMap({ coords, plantName, height = '400px', legendLabel = 'V
       return marker;
     });
 
-    // Fit bounds nhưng luôn giữ trong khung miền Nam Việt Nam
     if (markers.length > 0) {
       const group = L.featureGroup(markers);
-      const clampedBounds = clampBoundsToSouthVietnam(group.getBounds().pad(0.2));
+      const clampedBounds = clampBounds(group.getBounds().pad(resolvedFitPadding), resolvedMaxBounds);
       map.fitBounds(clampedBounds);
+    } else if (resolvedFallbackBounds) {
+      map.fitBounds(clampBounds(resolvedFallbackBounds, resolvedMaxBounds));
+    } else if (resolvedMaxBounds) {
+      map.fitBounds(resolvedMaxBounds);
     } else {
-      map.fitBounds(SOUTH_VIETNAM_BOUNDS);
+      map.setView(resolvedCenter, resolvedZoom);
     }
 
     setTimeout(() => {
@@ -168,7 +283,16 @@ function DistributionMap({ coords, plantName, height = '400px', legendLabel = 'V
         mapInstanceRef.current = null;
       }
     };
-  }, [safeCoords, plantName]);
+  }, [
+    markerCoords,
+    plantName,
+    resolvedCenter,
+    resolvedZoom,
+    resolvedMinZoom,
+    resolvedFitPadding,
+    resolvedMaxBounds,
+    resolvedFallbackBounds,
+  ]);
 
   return (
     <div className="distribution-map-container">
@@ -176,9 +300,9 @@ function DistributionMap({ coords, plantName, height = '400px', legendLabel = 'V
       <div className="map-legend">
         <span className="legend-marker">🌿</span>
         <span>{legendLabel} {plantName}</span>
-        <span className="legend-count">{safeCoords.length} địa điểm</span>
+        <span className="legend-count">{markerCoords.length} địa điểm</span>
       </div>
-      {safeCoords.length === 0 && <p className="no-map-data">Chưa có tọa độ, bản đồ đang focus Miền Nam Việt Nam.</p>}
+      {markerCoords.length === 0 && <p className="no-map-data">Chưa có tọa độ, bản đồ đang hiển thị vùng mặc định.</p>}
     </div>
   );
 }

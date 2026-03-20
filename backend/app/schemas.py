@@ -37,6 +37,7 @@ class PlantSummary(BaseModel):
     name: str
     scientific_name: Optional[str] = None
     image_url: Optional[str] = None
+    usage: Optional[str] = None
     letter: str
 
     class Config:
